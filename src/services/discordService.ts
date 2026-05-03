@@ -1,9 +1,7 @@
 import type { Player } from '../types/court';
 
-// Discord OAuth Configuration
+// Discord OAuth Configuration - использует implicit flow
 const DISCORD_CLIENT_ID = '1500581551069462569';
-const DISCORD_REDIRECT_URI = typeof window !== 'undefined' ? window.location.origin : '';
-const DISCORD_OAUTH_URL = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=token&scope=identify`;
 
 class DiscordService {
   private accessToken: string | null = null;
@@ -14,6 +12,7 @@ class DiscordService {
   }
 
   private checkAuthFromHash() {
+    // Проверяем hash (для implicit flow)
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
     const token = params.get('access_token');
@@ -38,10 +37,10 @@ class DiscordService {
   }
 
   async login() {
-    if (!this.isConfigured()) {
-      throw new Error('Discord OAuth не настроен. Добавьте VITE_DISCORD_CLIENT_ID в переменные окружения.');
-    }
-    window.location.href = DISCORD_OAUTH_URL;
+    const redirectUri = window.location.origin;
+    // Используем implicit flow (response_type=token)
+    const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=identify`;
+    window.location.href = authUrl;
   }
 
   async fetchUser() {

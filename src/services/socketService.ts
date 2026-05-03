@@ -325,6 +325,38 @@ class SocketService {
       });
     });
   }
+
+  giveTurn(playerId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+      this.socket.emit('game:giveTurn', { playerId }, (response: any) => {
+        if (response.success) {
+          resolve();
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
+  protest(reason?: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+      this.socket.emit('game:protest', { reason }, (response: any) => {
+        if (response.success) {
+          resolve();
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
 }
 
 export const socketService = new SocketService();

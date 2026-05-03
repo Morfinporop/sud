@@ -478,6 +478,81 @@ io.on('connection', (socket) => {
     callback({ success: true });
   });
 
+  // Judge action - give turn to speaker
+  socket.on('game:giveTurn', ({ playerId }, callback) => {
+    const user = users.get(socket.id);
+    if (!user || !user.currentLobby) {
+      callback({ success: false, error: 'Not in lobby' });
+      return;
+    }
+
+    const lobby = lobbies.get(user.currentLobby);
+    if (!lobby || lobby.roles[socket.id] !== 'судья') {
+      callback({ success: false, error: 'Only judge can give turns' });
+      return;
+    }
+
+    if (!lobby.case.currentSpeaker) {
+      lobby.case.currentSpeaker = playerId;
+    } else {
+      lobby.case.currentSpeaker = playerId;
+    }
+
+    lobbies.set(user.currentLobby, lobby);
+    io.to(user.currentLobby).emit('lobby:updated', lobby);
+    
+    const speakerUser = users.get(playerId);
+    const message = {
+      id: Math.random().toString(36).substring(7),
+      playerId: 'system',
+      playerName: 'Система',
+      text: `Слово предоставлено: ${speakerUser?.username || 'игроку'}`,
+      timestamp: Date.now(),
+      type: 'system'
+    };
+    
+    if (!lobby.case.messages) {
+      lobby.case.messages = [];
+    }
+    lobby.case.messages.push(message);
+    io.to(user.currentLobby).emit('game:newMessage', message);
+
+    callback({ success: true });
+  });
+
+  // Protest
+  socket.on('game:protest', ({ reason }, callback) => {
+    const user = users.get(socket.id);
+    if (!user || !user.currentLobby) {
+      callback({ success: false, error: 'Not in lobby' });
+      return;
+    }
+
+    const lobby = lobbies.get(user.currentLobby);
+    if (!lobby) {
+      callback({ success: false, error: 'Lobby not found' });
+      return;
+    }
+
+    const message = {
+      id: Math.random().toString(36).substring(7),
+      playerId: socket.id,
+      playerName: user.username,
+      text: `ПРОТЕСТ! ${reason || 'Прошу пересмотреть решение'}`,
+      timestamp: Date.now(),
+      type: 'action'
+    };
+
+    if (!lobby.case.messages) {
+      lobby.case.messages = [];
+    }
+    lobby.case.messages.push(message);
+    lobbies.set(user.currentLobby, lobby);
+    
+    io.to(user.currentLobby).emit('game:newMessage', message);
+    callback({ success: true });
+  });
+
   // Submit verdict
   socket.on('game:verdict', ({ verdict, penalty }, callback) => {
     const user = users.get(socket.id);
