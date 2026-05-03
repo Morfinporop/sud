@@ -106,3 +106,50 @@ export const UsersIcon = ({ className = "w-6 h-6" }: { className?: string }) => 
     <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
+
+export const BotIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="6" y="8" width="12" height="12" rx="2"/>
+    <path d="M12 2v6M8 10h8M9 14h6M10 18h4" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="9" cy="13" r="1" fill="currentColor"/>
+    <circle cx="15" cy="13" r="1" fill="currentColor"/>
+  </svg>
+);
+
+export const MessageIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+export const VoteIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M9 11l3 3L22 4" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+export const TimerIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="13" r="9"/>
+    <path d="M12 7v6l4 2M8 2h8" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+export const CrownIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M3 20h18M5 20l2-10 5 5 4-8 5 5 2-10v10H5z" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+export const BellIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+export const SendIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);

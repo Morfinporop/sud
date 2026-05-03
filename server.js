@@ -374,6 +374,9 @@ io.on('connection', (socket) => {
 
     lobby.status = 'in_game';
     lobby.case = caseData;
+    lobby.case.messages = [];
+    lobby.case.votes = [];
+    lobby.case.timeStarted = Date.now();
     lobby.roles = {};
     
     lobbies.set(user.currentLobby, lobby);
@@ -405,6 +408,72 @@ io.on('connection', (socket) => {
     lobby.roles[socket.id] = role;
     lobbies.set(user.currentLobby, lobby);
 
+    io.to(user.currentLobby).emit('lobby:updated', lobby);
+    callback({ success: true });
+  });
+
+  // Send message
+  socket.on('game:sendMessage', ({ text }, callback) => {
+    const user = users.get(socket.id);
+    if (!user || !user.currentLobby) {
+      callback({ success: false, error: 'Not in lobby' });
+      return;
+    }
+
+    const lobby = lobbies.get(user.currentLobby);
+    if (!lobby) {
+      callback({ success: false, error: 'Lobby not found' });
+      return;
+    }
+
+    const message = {
+      id: Math.random().toString(36).substring(7),
+      playerId: socket.id,
+      playerName: user.username,
+      text,
+      timestamp: Date.now(),
+      type: 'chat'
+    };
+
+    if (!lobby.case.messages) {
+      lobby.case.messages = [];
+    }
+    lobby.case.messages.push(message);
+    lobbies.set(user.currentLobby, lobby);
+
+    io.to(user.currentLobby).emit('game:newMessage', message);
+    callback({ success: true });
+  });
+
+  // Submit vote
+  socket.on('game:vote', ({ vote }, callback) => {
+    const user = users.get(socket.id);
+    if (!user || !user.currentLobby) {
+      callback({ success: false, error: 'Not in lobby' });
+      return;
+    }
+
+    const lobby = lobbies.get(user.currentLobby);
+    if (!lobby) {
+      callback({ success: false, error: 'Lobby not found' });
+      return;
+    }
+
+    if (!lobby.case.votes) {
+      lobby.case.votes = [];
+    }
+
+    // Remove old vote
+    lobby.case.votes = lobby.case.votes.filter(v => v.playerId !== socket.id);
+    
+    // Add new vote
+    lobby.case.votes.push({
+      playerId: socket.id,
+      vote,
+      timestamp: Date.now()
+    });
+
+    lobbies.set(user.currentLobby, lobby);
     io.to(user.currentLobby).emit('lobby:updated', lobby);
     callback({ success: true });
   });

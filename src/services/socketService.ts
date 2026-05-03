@@ -293,6 +293,38 @@ class SocketService {
       });
     });
   }
+
+  sendMessage(text: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+      this.socket.emit('game:sendMessage', { text }, (response: any) => {
+        if (response.success) {
+          resolve();
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
+  vote(vote: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+      this.socket.emit('game:vote', { vote }, (response: any) => {
+        if (response.success) {
+          resolve();
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
 }
 
 export const socketService = new SocketService();

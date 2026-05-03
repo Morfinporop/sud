@@ -18,6 +18,21 @@ export type Evidence = {
   addedBy: string;
 };
 
+export type Message = {
+  id: string;
+  playerId: string;
+  playerName: string;
+  text: string;
+  timestamp: number;
+  type: 'chat' | 'action' | 'system';
+};
+
+export type Vote = {
+  playerId: string;
+  vote: 'виновен' | 'не виновен';
+  timestamp: number;
+};
+
 export type CourtCase = {
   id: string;
   caseNumber: string;
@@ -31,8 +46,12 @@ export type CourtCase = {
   witnesses: string[];
   jury: string[];
   evidence: Evidence[];
+  messages: Message[];
+  votes: Vote[];
   verdict?: string;
   penalty?: string;
+  timeLimit?: number;
+  timeStarted?: number;
   createdAt: Date;
 };
 

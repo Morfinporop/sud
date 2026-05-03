@@ -3,7 +3,8 @@ import { socketService } from '../services/socketService';
 import { generateRandomCase } from '../data/articles';
 import { 
   GavelIcon, UserIcon, DocumentIcon, BookIcon, 
-  ShieldIcon, AlertIcon, XIcon, PlusIcon, UsersIcon
+  ShieldIcon, AlertIcon, XIcon, PlusIcon, UsersIcon,
+  BotIcon, MessageIcon, VoteIcon, TimerIcon, CrownIcon, SendIcon
 } from './Icons';
 
 interface User {
@@ -49,6 +50,9 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
   const [verdict, setVerdict] = useState<'виновен' | 'не виновен' | null>(null);
   const [penalty, setPenalty] = useState('');
   const [inviteNotification, setInviteNotification] = useState<any>(null);
+  const [showChat, setShowChat] = useState(false);
+  const [messageInput, setMessageInput] = useState('');
+  const [myVote, setMyVote] = useState<'виновен' | 'не виновен' | null>(null);
 
   useEffect(() => {
     loadFriends();
@@ -84,6 +88,19 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
       }
     });
 
+    socketService.on('game:newMessage', (message: any) => {
+      if (lobby && lobby.case) {
+        const updatedLobby = {
+          ...lobby,
+          case: {
+            ...lobby.case,
+            messages: [...(lobby.case.messages || []), message]
+          }
+        };
+        setLobby(updatedLobby);
+      }
+    });
+
     return () => {
       socketService.off('friend:added');
       socketService.off('friend:removed');
@@ -91,6 +108,7 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
       socketService.off('lobby:invited');
       socketService.off('game:started');
       socketService.off('game:finished');
+      socketService.off('game:newMessage');
     };
   }, [lobby]);
 
@@ -149,6 +167,26 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
   const handleAddBot = async () => {
     try {
       await socketService.addBot();
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim()) return;
+    
+    try {
+      await socketService.sendMessage(messageInput);
+      setMessageInput('');
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleVote = async (vote: 'виновен' | 'не виновен') => {
+    try {
+      await socketService.vote(vote);
+      setMyVote(vote);
     } catch (error: any) {
       alert(error.message);
     }
@@ -566,8 +604,13 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
                       </div>
                       <div>
                         <p className="text-white font-semibold">{getPlayerUsername(playerId)}</p>
-                        <p className="text-gray-500 text-sm">
-                          {playerId === lobby.host && '👑 Хост'}
+                        <p className="text-gray-500 text-sm flex items-center gap-1">
+                          {playerId === lobby.host && (
+                            <>
+                              <CrownIcon className="w-4 h-4" />
+                              <span>Хост</span>
+                            </>
+                          )}
                           {playerId === user.id && playerId !== lobby.host && 'Вы'}
                         </p>
                       </div>
@@ -591,7 +634,8 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
                       disabled={lobby.players.length >= 6}
                       className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed border border-zinc-700 text-white font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
                     >
-                      🤖 Бота
+                      <BotIcon className="w-5 h-5" />
+                      Бота
                     </button>
                   </div>
 

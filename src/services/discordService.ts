@@ -1,11 +1,9 @@
 import type { Player } from '../types/court';
 
 // Discord OAuth Configuration
-const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || '';
+const DISCORD_CLIENT_ID = '1500581551069462569';
 const DISCORD_REDIRECT_URI = typeof window !== 'undefined' ? window.location.origin : '';
-const DISCORD_OAUTH_URL = DISCORD_CLIENT_ID 
-  ? `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=token&scope=identify`
-  : '';
+const DISCORD_OAUTH_URL = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=token&scope=identify`;
 
 class DiscordService {
   private accessToken: string | null = null;
@@ -36,7 +34,7 @@ class DiscordService {
   }
 
   isConfigured() {
-    return DISCORD_CLIENT_ID !== '';
+    return true;
   }
 
   async login() {
