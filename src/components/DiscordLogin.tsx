@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { DiscordIcon } from './Icons';
 
 interface DiscordLoginProps {
@@ -6,6 +7,19 @@ interface DiscordLoginProps {
 }
 
 export const DiscordLogin = ({ onGuestLogin, onDiscordLogin }: DiscordLoginProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleGuestClick = async () => {
+    setIsLoading(true);
+    try {
+      await onGuestLogin();
+    } catch (error) {
+      console.error('Guest login error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-black to-zinc-900 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px]"></div>
@@ -42,16 +56,26 @@ export const DiscordLogin = ({ onGuestLogin, onDiscordLogin }: DiscordLoginProps
             </div>
 
             <button
-              onClick={onGuestLogin}
-              className="w-full bg-gradient-to-r from-white to-gray-100 hover:from-gray-100 hover:to-gray-200 text-black font-semibold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg"
+              onClick={handleGuestClick}
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-white to-gray-100 hover:from-gray-100 hover:to-gray-200 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-black font-semibold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg"
             >
-              Войти как гость
+              {isLoading ? 'Вход...' : 'Войти как гость'}
             </button>
+            
+            <div className="mt-3 text-center">
+              <p className="text-gray-500 text-xs">
+                Вам будет присвоено имя: <span className="text-gray-400 font-mono">Гость#{Math.floor(Math.random() * 900000000 + 100000000)}</span>
+              </p>
+            </div>
           </div>
 
           <div className="mt-8 pt-6 border-t border-zinc-800 text-center">
             <p className="text-gray-500 text-sm">
               Общение между игроками происходит в Discord
+            </p>
+            <p className="text-gray-600 text-xs mt-2">
+              Discord OAuth настраивается опционально
             </p>
           </div>
         </div>

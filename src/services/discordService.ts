@@ -1,8 +1,11 @@
 import type { Player } from '../types/court';
 
-const DISCORD_CLIENT_ID = '1234567890'; // Замените на ваш Client ID
-const DISCORD_REDIRECT_URI = window.location.origin;
-const DISCORD_OAUTH_URL = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=token&scope=identify`;
+// Discord OAuth Configuration
+const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID || '';
+const DISCORD_REDIRECT_URI = typeof window !== 'undefined' ? window.location.origin : '';
+const DISCORD_OAUTH_URL = DISCORD_CLIENT_ID 
+  ? `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=token&scope=identify`
+  : '';
 
 class DiscordService {
   private accessToken: string | null = null;
@@ -32,7 +35,14 @@ class DiscordService {
     }
   }
 
+  isConfigured() {
+    return DISCORD_CLIENT_ID !== '';
+  }
+
   async login() {
+    if (!this.isConfigured()) {
+      throw new Error('Discord OAuth не настроен. Добавьте VITE_DISCORD_CLIENT_ID в переменные окружения.');
+    }
     window.location.href = DISCORD_OAUTH_URL;
   }
 
@@ -77,20 +87,6 @@ class DiscordService {
     return this.accessToken !== null && this.user !== null;
   }
 
-  // Для демонстрации создадим симуляцию Discord пользователя
-  loginDemo(username: string) {
-    const demoUser = {
-      id: Math.random().toString(36).substring(7),
-      username: username,
-      discriminator: Math.floor(Math.random() * 9999).toString().padStart(4, '0'),
-      avatar: null,
-    };
-    this.user = demoUser;
-    this.accessToken = 'demo_token';
-    localStorage.setItem('discord_user', JSON.stringify(demoUser));
-    return demoUser;
-  }
-
   convertToPlayer(): Player | null {
     if (!this.user) return null;
 
@@ -102,7 +98,7 @@ class DiscordService {
     const player: Player = {
       id: Math.random().toString(36).substring(7),
       discordId: this.user.id,
-      discordUsername: `${this.user.username}#${this.user.discriminator}`,
+      discordUsername: `${this.user.username}#${this.user.discriminator || '0000'}`,
       cases: 0,
       wins: 0,
       losses: 0,

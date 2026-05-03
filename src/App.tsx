@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { DiscordLogin } from './components/DiscordLogin';
 import { CourtGame } from './components/CourtGame';
 import { socketService } from './services/socketService';
+import { discordService } from './services/discordService';
 
 interface User {
   id: string;
@@ -20,7 +21,29 @@ function App() {
   useEffect(() => {
     // Connect to socket server
     socketService.connect();
-    setIsLoading(false);
+    
+    // Check if Discord auth is complete
+    const checkDiscordAuth = async () => {
+      if (discordService.isAuthenticated()) {
+        try {
+          const discordUser = discordService.getUser();
+          if (discordUser) {
+            const userData = await socketService.loginWithDiscord({
+              id: discordUser.id,
+              username: discordUser.username,
+              discriminator: discordUser.discriminator || '0000',
+              avatar: discordUser.avatar
+            });
+            setUser(userData);
+          }
+        } catch (error) {
+          console.error('Discord login failed:', error);
+        }
+      }
+      setIsLoading(false);
+    };
+    
+    checkDiscordAuth();
   }, []);
 
   const handleGuestLogin = async () => {
@@ -29,13 +52,22 @@ function App() {
       setUser(userData);
     } catch (error) {
       console.error('Login failed:', error);
-      alert('Не удалось войти');
+      alert('Не удалось войти. Проверьте подключение к серверу.');
     }
   };
 
-  const handleDiscordLogin = () => {
-    // Redirect to Discord OAuth
-    alert('Discord OAuth интеграция будет добавлена позже. Используйте вход как гость.');
+  const handleDiscordLogin = async () => {
+    if (!discordService.isConfigured()) {
+      alert('Discord OAuth не настроен.\n\nДля настройки:\n1. Создайте приложение на https://discord.com/developers/applications\n2. Скопируйте Client ID\n3. Добавьте переменную окружения VITE_DISCORD_CLIENT_ID\n\nПока используйте вход как гость.');
+      return;
+    }
+    
+    try {
+      await discordService.login();
+    } catch (error: any) {
+      console.error('Discord login error:', error);
+      alert(error.message);
+    }
   };
 
   const handleLogout = () => {
