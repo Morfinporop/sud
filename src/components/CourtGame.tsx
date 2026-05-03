@@ -42,7 +42,9 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
   const [lobby, setLobby] = useState<Lobby | null>(null);
   const [showFriends, setShowFriends] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showJoinLobby, setShowJoinLobby] = useState(false);
   const [friendInput, setFriendInput] = useState('');
+  const [lobbyIdInput, setLobbyIdInput] = useState('');
   const [notes, setNotes] = useState('');
   const [verdict, setVerdict] = useState<'виновен' | 'не виновен' | null>(null);
   const [penalty, setPenalty] = useState('');
@@ -126,6 +128,27 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
     try {
       const newLobby = await socketService.createLobby();
       setLobby(newLobby);
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleJoinLobbyById = async () => {
+    if (!lobbyIdInput.trim()) return;
+    
+    try {
+      const joinedLobby = await socketService.joinLobby(lobbyIdInput.trim().toUpperCase());
+      setLobby(joinedLobby);
+      setLobbyIdInput('');
+      setShowJoinLobby(false);
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleAddBot = async () => {
+    try {
+      await socketService.addBot();
     } catch (error: any) {
       alert(error.message);
     }
@@ -432,6 +455,55 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
         </div>
       )}
 
+      {/* Join Lobby Modal */}
+      {showJoinLobby && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-b from-zinc-900 to-black border border-zinc-800 rounded-2xl p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <UsersIcon className="w-6 h-6" />
+                Присоединиться к лобби
+              </h3>
+              <button onClick={() => setShowJoinLobby(false)} className="text-gray-500 hover:text-white">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-gray-400 text-sm font-medium mb-2">
+                Введите ID лобби
+              </label>
+              <input
+                type="text"
+                value={lobbyIdInput}
+                onChange={(e) => setLobbyIdInput(e.target.value.toUpperCase())}
+                onKeyPress={(e) => e.key === 'Enter' && handleJoinLobbyById()}
+                placeholder="Например: 5HEMNB"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-zinc-600 uppercase"
+                autoFocus
+                maxLength={6}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleJoinLobbyById}
+                disabled={!lobbyIdInput.trim()}
+                className="flex-1 bg-white hover:bg-gray-200 disabled:bg-zinc-700 disabled:cursor-not-allowed text-black disabled:text-gray-500 font-semibold py-3 px-6 rounded-xl transition-all duration-200"
+              >
+                Присоединиться
+              </button>
+              <button
+                onClick={() => setShowJoinLobby(false)}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="relative container mx-auto px-4 py-8">
         {!lobby ? (
@@ -441,13 +513,22 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
               <h2 className="text-3xl font-bold text-white mb-4">Добро пожаловать</h2>
               <p className="text-gray-400 mb-8">Создайте лобби и пригласите друзей</p>
               
-              <button
-                onClick={handleCreateLobby}
-                className="bg-gradient-to-r from-white to-gray-100 hover:from-gray-100 hover:to-gray-200 text-black font-semibold py-4 px-8 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 mx-auto shadow-lg"
-              >
-                <PlusIcon className="w-6 h-6" />
-                Создать лобби
-              </button>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={handleCreateLobby}
+                  className="bg-gradient-to-r from-white to-gray-100 hover:from-gray-100 hover:to-gray-200 text-black font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <PlusIcon className="w-6 h-6" />
+                  Создать
+                </button>
+                <button
+                  onClick={() => setShowJoinLobby(true)}
+                  className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  <UsersIcon className="w-6 h-6" />
+                  Присоединиться
+                </button>
+              </div>
 
               <div className="mt-8 pt-6 border-t border-zinc-800">
                 <p className="text-gray-500 text-sm mb-4">Добавьте друзей чтобы играть вместе</p>
@@ -497,13 +578,22 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
 
               {isHost && (
                 <div className="space-y-4">
-                  <button
-                    onClick={() => setShowFriends(true)}
-                    className="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
-                  >
-                    <PlusIcon className="w-5 h-5" />
-                    Пригласить друзей
-                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setShowFriends(true)}
+                      className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      <PlusIcon className="w-5 h-5" />
+                      Друзей
+                    </button>
+                    <button
+                      onClick={handleAddBot}
+                      disabled={lobby.players.length >= 6}
+                      className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed border border-zinc-700 text-white font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      🤖 Бота
+                    </button>
+                  </div>
 
                   {lobby.players.length >= 3 && (
                     <button
@@ -516,7 +606,8 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
 
                   {lobby.players.length < 3 && (
                     <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-4 text-center">
-                      <p className="text-gray-400">Нужно минимум 3 игрока для начала игры</p>
+                      <p className="text-gray-400 mb-2">Нужно минимум 3 игрока для начала игры</p>
+                      <p className="text-gray-500 text-sm">Добавьте друзей или ботов для теста</p>
                     </div>
                   )}
                 </div>

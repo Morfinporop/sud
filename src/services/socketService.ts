@@ -213,6 +213,22 @@ class SocketService {
     });
   }
 
+  addBot(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Socket not connected'));
+        return;
+      }
+      this.socket.emit('lobby:addBot', (response: any) => {
+        if (response.success) {
+          resolve(response.bot);
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
   leaveLobby(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.socket) {

@@ -36,6 +36,29 @@ function generateLobbyId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
+// Test bots
+const TEST_BOTS = [
+  { name: 'Прокурор', role: 'прокурор' },
+  { name: 'Адвокат', role: 'адвокат' },
+  { name: 'Судья', role: 'судья' },
+  { name: 'Истец', role: 'истец' }
+];
+
+function createBot(botData, lobbyId) {
+  const botId = `bot_${Math.random().toString(36).substring(7)}`;
+  const bot = {
+    id: botId,
+    username: `🤖 ${botData.name}`,
+    isBot: true,
+    botRole: botData.role,
+    friends: [],
+    currentLobby: lobbyId,
+    isGuest: false
+  };
+  users.set(botId, bot);
+  return bot;
+}
+
 // Socket.IO connection
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -230,8 +253,13 @@ io.on('connection', (socket) => {
     const user = users.get(socket.id);
     const lobby = lobbies.get(lobbyId);
 
-    if (!user || !lobby) {
-      callback({ success: false, error: 'User or lobby not found' });
+    if (!user) {
+      callback({ success: false, error: 'User not found' });
+      return;
+    }
+
+    if (!lobby) {
+      callback({ success: false, error: 'Lobby not found' });
       return;
     }
 
@@ -252,6 +280,46 @@ io.on('connection', (socket) => {
     io.to(lobbyId).emit('lobby:updated', lobby);
 
     callback({ success: true, lobby });
+  });
+
+  // Add bot to lobby
+  socket.on('lobby:addBot', (callback) => {
+    const user = users.get(socket.id);
+    if (!user || !user.currentLobby) {
+      callback({ success: false, error: 'Not in lobby' });
+      return;
+    }
+
+    const lobby = lobbies.get(user.currentLobby);
+    if (!lobby || lobby.host !== socket.id) {
+      callback({ success: false, error: 'Only host can add bots' });
+      return;
+    }
+
+    if (lobby.players.length >= 6) {
+      callback({ success: false, error: 'Lobby is full' });
+      return;
+    }
+
+    // Find available bot
+    const usedBots = lobby.players
+      .map(playerId => users.get(playerId))
+      .filter(p => p && p.isBot)
+      .map(p => p.botRole);
+
+    const availableBot = TEST_BOTS.find(bot => !usedBots.includes(bot.role));
+    
+    if (!availableBot) {
+      callback({ success: false, error: 'No available bots' });
+      return;
+    }
+
+    const bot = createBot(availableBot, user.currentLobby);
+    lobby.players.push(bot.id);
+    lobbies.set(user.currentLobby, lobby);
+
+    io.to(user.currentLobby).emit('lobby:updated', lobby);
+    callback({ success: true, bot });
   });
 
   // Leave lobby
