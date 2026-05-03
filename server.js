@@ -1,0 +1,413 @@
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// In-memory storage
+const users = new Map(); // userId -> user data
+const lobbies = new Map(); // lobbyId -> lobby data
+const friendRequests = new Map(); // userId -> array of friend requests
+
+// Generate random guest ID
+function generateGuestId() {
+  return Math.floor(100000000 + Math.random() * 900000000);
+}
+
+// Generate lobby ID
+function generateLobbyId() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+// Socket.IO connection
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Login as guest
+  socket.on('login:guest', (callback) => {
+    const guestId = generateGuestId();
+    const username = `Гость#${guestId}`;
+    
+    const user = {
+      id: socket.id,
+      username,
+      guestId,
+      friends: [],
+      currentLobby: null,
+      isGuest: true
+    };
+
+    users.set(socket.id, user);
+    callback({ success: true, user });
+  });
+
+  // Login with Discord
+  socket.on('login:discord', (discordData, callback) => {
+    const user = {
+      id: socket.id,
+      username: discordData.username,
+      discordId: discordData.id,
+      avatar: discordData.avatar,
+      friends: [],
+      currentLobby: null,
+      isGuest: false
+    };
+
+    users.set(socket.id, user);
+    callback({ success: true, user });
+  });
+
+  // Add friend
+  socket.on('friend:add', (friendUsername, callback) => {
+    const user = users.get(socket.id);
+    if (!user) {
+      callback({ success: false, error: 'User not found' });
+      return;
+    }
+
+    // Find friend by username
+    let friendUser = null;
+    for (const [id, u] of users.entries()) {
+      if (u.username === friendUsername && id !== socket.id) {
+        friendUser = u;
+        break;
+      }
+    }
+
+    if (!friendUser) {
+      callback({ success: false, error: 'Friend not found' });
+      return;
+    }
+
+    // Check if already friends
+    if (user.friends.includes(friendUser.id)) {
+      callback({ success: false, error: 'Already friends' });
+      return;
+    }
+
+    // Add to friends
+    user.friends.push(friendUser.id);
+    friendUser.friends.push(socket.id);
+
+    users.set(socket.id, user);
+    users.set(friendUser.id, friendUser);
+
+    // Notify friend
+    io.to(friendUser.id).emit('friend:added', {
+      id: user.id,
+      username: user.username
+    });
+
+    callback({ 
+      success: true, 
+      friend: {
+        id: friendUser.id,
+        username: friendUser.username
+      }
+    });
+  });
+
+  // Get friends list
+  socket.on('friend:list', (callback) => {
+    const user = users.get(socket.id);
+    if (!user) {
+      callback({ success: false, error: 'User not found' });
+      return;
+    }
+
+    const friends = user.friends.map(friendId => {
+      const friend = users.get(friendId);
+      return friend ? {
+        id: friend.id,
+        username: friend.username,
+        online: true,
+        inLobby: friend.currentLobby !== null
+      } : null;
+    }).filter(f => f !== null);
+
+    callback({ success: true, friends });
+  });
+
+  // Remove friend
+  socket.on('friend:remove', (friendId, callback) => {
+    const user = users.get(socket.id);
+    if (!user) {
+      callback({ success: false, error: 'User not found' });
+      return;
+    }
+
+    user.friends = user.friends.filter(id => id !== friendId);
+    users.set(socket.id, user);
+
+    const friend = users.get(friendId);
+    if (friend) {
+      friend.friends = friend.friends.filter(id => id !== socket.id);
+      users.set(friendId, friend);
+      
+      io.to(friendId).emit('friend:removed', socket.id);
+    }
+
+    callback({ success: true });
+  });
+
+  // Create lobby
+  socket.on('lobby:create', (callback) => {
+    const user = users.get(socket.id);
+    if (!user) {
+      callback({ success: false, error: 'User not found' });
+      return;
+    }
+
+    if (user.currentLobby) {
+      callback({ success: false, error: 'Already in lobby' });
+      return;
+    }
+
+    const lobbyId = generateLobbyId();
+    const lobby = {
+      id: lobbyId,
+      host: socket.id,
+      players: [socket.id],
+      status: 'waiting', // waiting, in_game, finished
+      case: null,
+      roles: {},
+      createdAt: Date.now()
+    };
+
+    lobbies.set(lobbyId, lobby);
+    user.currentLobby = lobbyId;
+    users.set(socket.id, user);
+    
+    socket.join(lobbyId);
+
+    callback({ success: true, lobby });
+  });
+
+  // Invite to lobby
+  socket.on('lobby:invite', ({ friendId, lobbyId }, callback) => {
+    const user = users.get(socket.id);
+    const lobby = lobbies.get(lobbyId);
+
+    if (!user || !lobby) {
+      callback({ success: false, error: 'User or lobby not found' });
+      return;
+    }
+
+    if (lobby.host !== socket.id) {
+      callback({ success: false, error: 'Only host can invite' });
+      return;
+    }
+
+    // Send invite to friend
+    io.to(friendId).emit('lobby:invited', {
+      lobbyId,
+      host: user.username,
+      hostId: socket.id
+    });
+
+    callback({ success: true });
+  });
+
+  // Join lobby
+  socket.on('lobby:join', (lobbyId, callback) => {
+    const user = users.get(socket.id);
+    const lobby = lobbies.get(lobbyId);
+
+    if (!user || !lobby) {
+      callback({ success: false, error: 'User or lobby not found' });
+      return;
+    }
+
+    if (user.currentLobby) {
+      callback({ success: false, error: 'Already in lobby' });
+      return;
+    }
+
+    lobby.players.push(socket.id);
+    user.currentLobby = lobbyId;
+    
+    lobbies.set(lobbyId, lobby);
+    users.set(socket.id, user);
+    
+    socket.join(lobbyId);
+
+    // Notify all players
+    io.to(lobbyId).emit('lobby:updated', lobby);
+
+    callback({ success: true, lobby });
+  });
+
+  // Leave lobby
+  socket.on('lobby:leave', (callback) => {
+    const user = users.get(socket.id);
+    if (!user || !user.currentLobby) {
+      callback({ success: false, error: 'Not in lobby' });
+      return;
+    }
+
+    const lobby = lobbies.get(user.currentLobby);
+    if (lobby) {
+      lobby.players = lobby.players.filter(id => id !== socket.id);
+      
+      if (lobby.players.length === 0) {
+        lobbies.delete(user.currentLobby);
+      } else if (lobby.host === socket.id) {
+        lobby.host = lobby.players[0];
+        lobbies.set(user.currentLobby, lobby);
+        io.to(user.currentLobby).emit('lobby:updated', lobby);
+      } else {
+        lobbies.set(user.currentLobby, lobby);
+        io.to(user.currentLobby).emit('lobby:updated', lobby);
+      }
+    }
+
+    socket.leave(user.currentLobby);
+    user.currentLobby = null;
+    users.set(socket.id, user);
+
+    callback({ success: true });
+  });
+
+  // Start game
+  socket.on('game:start', (caseData, callback) => {
+    const user = users.get(socket.id);
+    if (!user || !user.currentLobby) {
+      callback({ success: false, error: 'Not in lobby' });
+      return;
+    }
+
+    const lobby = lobbies.get(user.currentLobby);
+    if (!lobby || lobby.host !== socket.id) {
+      callback({ success: false, error: 'Only host can start game' });
+      return;
+    }
+
+    if (lobby.players.length < 3) {
+      callback({ success: false, error: 'Need at least 3 players' });
+      return;
+    }
+
+    lobby.status = 'in_game';
+    lobby.case = caseData;
+    lobby.roles = {};
+    
+    lobbies.set(user.currentLobby, lobby);
+
+    io.to(user.currentLobby).emit('game:started', lobby);
+    callback({ success: true });
+  });
+
+  // Assign role
+  socket.on('game:selectRole', ({ role }, callback) => {
+    const user = users.get(socket.id);
+    if (!user || !user.currentLobby) {
+      callback({ success: false, error: 'Not in lobby' });
+      return;
+    }
+
+    const lobby = lobbies.get(user.currentLobby);
+    if (!lobby) {
+      callback({ success: false, error: 'Lobby not found' });
+      return;
+    }
+
+    // Check if role is taken
+    if (Object.values(lobby.roles).includes(role) && role !== 'присяжный') {
+      callback({ success: false, error: 'Role already taken' });
+      return;
+    }
+
+    lobby.roles[socket.id] = role;
+    lobbies.set(user.currentLobby, lobby);
+
+    io.to(user.currentLobby).emit('lobby:updated', lobby);
+    callback({ success: true });
+  });
+
+  // Submit verdict
+  socket.on('game:verdict', ({ verdict, penalty }, callback) => {
+    const user = users.get(socket.id);
+    if (!user || !user.currentLobby) {
+      callback({ success: false, error: 'Not in lobby' });
+      return;
+    }
+
+    const lobby = lobbies.get(user.currentLobby);
+    if (!lobby || lobby.roles[socket.id] !== 'судья') {
+      callback({ success: false, error: 'Only judge can submit verdict' });
+      return;
+    }
+
+    lobby.case.verdict = verdict;
+    lobby.case.penalty = penalty;
+    lobby.status = 'finished';
+    
+    lobbies.set(user.currentLobby, lobby);
+
+    io.to(user.currentLobby).emit('game:finished', {
+      verdict,
+      penalty
+    });
+
+    callback({ success: true });
+  });
+
+  // Disconnect
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+    
+    const user = users.get(socket.id);
+    if (user && user.currentLobby) {
+      const lobby = lobbies.get(user.currentLobby);
+      if (lobby) {
+        lobby.players = lobby.players.filter(id => id !== socket.id);
+        
+        if (lobby.players.length === 0) {
+          lobbies.delete(user.currentLobby);
+        } else if (lobby.host === socket.id) {
+          lobby.host = lobby.players[0];
+          lobbies.set(user.currentLobby, lobby);
+          io.to(user.currentLobby).emit('lobby:updated', lobby);
+        } else {
+          lobbies.set(user.currentLobby, lobby);
+          io.to(user.currentLobby).emit('lobby:updated', lobby);
+        }
+      }
+    }
+    
+    users.delete(socket.id);
+  });
+});
+
+// API Routes
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', users: users.size, lobbies: lobbies.size });
+});
+
+// Serve React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+const PORT = process.env.PORT || 3000;
+
+httpServer.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
