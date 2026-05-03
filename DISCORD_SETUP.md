@@ -43,12 +43,21 @@ VITE_DISCORD_CLIENT_ID=1234567890123456789
 
 ### 4. Railway Deploy
 
+**Discord Client ID уже настроен!** (1500581551069462569)
+
+Но если нужно изменить:
 1. Откройте ваш проект на Railway
 2. Перейдите в **Settings** → **Variables**
-3. Добавьте переменную:
+3. Добавьте/измените переменную:
    - **Key:** `VITE_DISCORD_CLIENT_ID`
    - **Value:** ваш Client ID
 4. Сохраните и передеплойте проект
+
+**Важно для Railway:**
+В настройках Discord приложения добавьте Redirect URI:
+```
+https://ваш-проект.up.railway.app
+```
 
 ### 5. Проверка
 

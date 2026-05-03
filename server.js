@@ -401,8 +401,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', users: users.size, lobbies: lobbies.size });
 });
 
-// Serve React app
-app.get('*', (req, res) => {
+// Serve React app for all other routes
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
