@@ -74,9 +74,6 @@ export const DiscordLogin = ({ onGuestLogin, onDiscordLogin }: DiscordLoginProps
             <p className="text-gray-500 text-sm">
               Общение между игроками происходит в Discord
             </p>
-            <p className="text-gray-600 text-xs mt-2">
-              Discord OAuth настраивается опционально
-            </p>
           </div>
         </div>
       </div>

@@ -192,6 +192,25 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
     }
   };
 
+  const handleGiveTurn = async (playerId: string) => {
+    try {
+      await socketService.giveTurn(playerId);
+    } catch (error: any) {
+      alert(error.message);
+    }
+  };
+
+  const handleProtest = async () => {
+    const reason = prompt('Причина протеста:');
+    if (reason) {
+      try {
+        await socketService.protest(reason);
+      } catch (error: any) {
+        alert(error.message);
+      }
+    }
+  };
+
   const handleInviteFriend = async (friendId: string) => {
     if (!lobby) return;
     
@@ -354,6 +373,21 @@ export const CourtGame = ({ user, onLogout }: CourtGameProps) => {
                 <DocumentIcon className="w-5 h-5" />
                 <span className="hidden sm:inline">Заметки</span>
               </button>
+
+              {lobby && lobby.case && (
+                <button
+                  onClick={() => setShowChat(!showChat)}
+                  className="bg-gradient-to-r from-zinc-800 to-zinc-900 hover:from-zinc-700 hover:to-zinc-800 border border-zinc-700 text-white px-4 py-2 rounded-xl transition-all duration-200 flex items-center gap-2"
+                >
+                  <MessageIcon className="w-5 h-5" />
+                  <span className="hidden sm:inline">Чат</span>
+                  {lobby.case.messages && lobby.case.messages.length > 0 && (
+                    <span className="bg-white text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {lobby.case.messages.length}
+                    </span>
+                  )}
+                </button>
+              )}
 
               <div className="bg-gradient-to-r from-zinc-800 to-zinc-900 border border-zinc-700 rounded-xl px-4 py-2">
                 <div className="flex items-center gap-3">
